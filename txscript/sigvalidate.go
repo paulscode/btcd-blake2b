@@ -161,9 +161,10 @@ func (b *baseSigVerifier) Verify() verifyResult {
 	// to sign itself.
 	subScript, match := removeOpcodeByData(b.subScript, b.fullSigBytes)
 
-	sigHash := calcSignatureHash(
-		subScript, b.hashType, &b.vm.tx, b.vm.txIdx,
-	)
+	sigHash, err := b.vm.legacySigHash(subScript, b.hashType)
+	if err != nil {
+		return verifyResult{sigMatch: match}
+	}
 
 	return verifyResult{
 		sigValid: b.verifySig(sigHash),
@@ -208,10 +209,7 @@ func (s *baseSegwitSigVerifier) Verify() verifyResult {
 		sigHashes = NewTxSigHashes(&s.vm.tx, s.vm.prevOutFetcher)
 	}
 
-	sigHash, err := calcWitnessSignatureHashRaw(
-		s.subScript, sigHashes, s.hashType, &s.vm.tx, s.vm.txIdx,
-		s.vm.inputAmount,
-	)
+	sigHash, err := s.vm.witnessSigHash(s.subScript, sigHashes, s.hashType)
 	if err != nil {
 		// TODO(roasbeef): this doesn't need to return an error, should
 		// instead be further up the stack? this only returns an error
@@ -238,6 +236,11 @@ type taprootSigVerifier struct {
 	sig          *schnorr.Signature
 
 	hashType SigHashType
+
+	// unified is whether the opt-in unified signature hash
+	// (SigHashUnified) is honoured, i.e. ScriptVerifyUnifiedSigHash was
+	// set on the engine.
+	unified bool
 
 	sigCache  *SigCache
 	hashCache *TxSigHashes
@@ -313,7 +316,7 @@ func parseTaprootSigAndPubKey(pkBytes, rawSig []byte,
 func newTaprootSigVerifier(pkBytes []byte, fullSigBytes []byte,
 	tx *wire.MsgTx, inputIndex int, prevOuts PrevOutputFetcher,
 	sigCache *SigCache, hashCache *TxSigHashes,
-	annex []byte) (*taprootSigVerifier, error) {
+	annex []byte, unified bool) (*taprootSigVerifier, error) {
 
 	pubKey, sig, sigHashType, err := parseTaprootSigAndPubKey(
 		pkBytes, fullSigBytes,
@@ -328,6 +331,7 @@ func newTaprootSigVerifier(pkBytes []byte, fullSigBytes []byte,
 		sig:          sig,
 		fullSigBytes: fullSigBytes,
 		hashType:     sigHashType,
+		unified:      unified,
 		tx:           tx,
 		inputIndex:   inputIndex,
 		prevOuts:     prevOuts,
@@ -378,9 +382,9 @@ func (t *taprootSigVerifier) Verify() verifyResult {
 
 	// Before we attempt to verify the signature, we'll need to first
 	// compute the sighash based on the input and tx information.
-	sigHash, err := calcTaprootSignatureHashRaw(
-		t.hashCache, t.hashType, t.tx, t.inputIndex, t.prevOuts,
-		opts...,
+	sigHash, err := taprootSigHash(
+		t.unified, t.hashCache, t.hashType, t.tx, t.inputIndex,
+		t.prevOuts, opts...,
 	)
 	if err != nil {
 		// TODO(roasbeef): propagate the error here?
@@ -422,6 +426,7 @@ func newBaseTapscriptSigVerifier(pkBytes, rawSig []byte,
 		baseTaprootVerifier, err := newTaprootSigVerifier(
 			pkBytes, rawSig, &vm.tx, vm.txIdx, vm.prevOutFetcher,
 			vm.sigCache, vm.hashCache, vm.taprootCtx.annex,
+			vm.hasFlag(ScriptVerifyUnifiedSigHash),
 		)
 		if err != nil {
 			return nil, err
@@ -476,9 +481,9 @@ func (b *baseTapscriptSigVerifier) Verify() verifyResult {
 
 	// Otherwise, we'll compute the sighash using the tapscript message
 	// extensions and return the outcome.
-	sigHash, err := calcTaprootSignatureHashRaw(
-		b.hashCache, b.hashType, b.tx, b.inputIndex, b.prevOuts,
-		opts...,
+	sigHash, err := taprootSigHash(
+		b.unified, b.hashCache, b.hashType, b.tx, b.inputIndex,
+		b.prevOuts, opts...,
 	)
 	if err != nil {
 		// TODO(roasbeef): propagate the error here?

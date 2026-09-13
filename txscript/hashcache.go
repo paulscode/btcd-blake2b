@@ -204,6 +204,12 @@ type TxSigHashes struct {
 	SegwitSigHashMidstate
 
 	TaprootSigHashMidState
+
+	// prevOutFetcher is the fetcher the midstate was computed from. The
+	// unified signature hash (SigHashUnified) commits to every spent
+	// output, so it is kept here for the signing and verification paths
+	// that otherwise only know the input being signed.
+	prevOutFetcher PrevOutputFetcher
 }
 
 // NewTxSigHashes computes, and returns the cached sighashes of the given
@@ -212,7 +218,7 @@ func NewTxSigHashes(tx *wire.MsgTx,
 	inputFetcher PrevOutputFetcher) *TxSigHashes {
 
 	var (
-		sigHashes TxSigHashes
+		sigHashes = TxSigHashes{prevOutFetcher: inputFetcher}
 		zeroHash  chainhash.Hash
 	)
 

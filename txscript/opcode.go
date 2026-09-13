@@ -2413,13 +2413,15 @@ func opcodeCheckMultiSig(op *opcode, data []byte, vm *Engine) error {
 				)
 			}
 
-			hash, err = calcWitnessSignatureHashRaw(script, sigHashes, hashType,
-				&vm.tx, vm.txIdx, vm.inputAmount)
+			hash, err = vm.witnessSigHash(script, sigHashes, hashType)
 			if err != nil {
 				return err
 			}
 		} else {
-			hash = calcSignatureHash(script, hashType, &vm.tx, vm.txIdx)
+			hash, err = vm.legacySigHash(script, hashType)
+			if err != nil {
+				return err
+			}
 		}
 
 		var valid bool

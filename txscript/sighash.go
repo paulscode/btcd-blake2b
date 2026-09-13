@@ -194,7 +194,7 @@ func calcSignatureHash(sigScript []byte, hashType SigHashType, tx *wire.MsgTx, i
 // being spent, in addition to the final transaction fee. In the case the
 // wallet if fed an invalid input amount, the real sighash will differ causing
 // the produced signature to be invalid.
-func calcWitnessSignatureHashRaw(subScript []byte, sigHashes *TxSigHashes,
+func calcWitnessSignatureHashBIP143(subScript []byte, sigHashes *TxSigHashes,
 	hashType SigHashType, tx *wire.MsgTx, idx int, amt int64) ([]byte, error) {
 
 	// As a sanity check, ensure the passed input index for the transaction
@@ -445,7 +445,7 @@ func isValidTaprootSigHash(hashType SigHashType) bool {
 
 // calcTaprootSignatureHashRaw computes the sighash as specified in BIP 143.
 // If an invalid sighash type is passed in, an error is returned.
-func calcTaprootSignatureHashRaw(sigHashes *TxSigHashes, hType SigHashType,
+func calcTaprootSignatureHashBIP341(sigHashes *TxSigHashes, hType SigHashType,
 	tx *wire.MsgTx, idx int,
 	prevOutFetcher PrevOutputFetcher,
 	sigHashOpts ...TaprootSigHashOption) ([]byte, error) {

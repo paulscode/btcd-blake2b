@@ -71,10 +71,13 @@ func RawTxInTaprootSignature(tx *wire.MsgTx, sigHashes *TxSigHashes, idx int,
 	amt int64, pkScript []byte, tapScriptRootHash []byte, hashType SigHashType,
 	key *btcec.PrivateKey) ([]byte, error) {
 
-	// First, we'll start by compute the top-level taproot sighash.
+	// First, we'll start by compute the top-level taproot sighash. An
+	// opted-in (SigHashUnified) signature commits to every spent output,
+	// which only the fetcher the midstate was built from knows; the canned
+	// fetcher covers just this input.
 	sigHash, err := calcTaprootSignatureHashRaw(
 		sigHashes, hashType, tx, idx,
-		NewCannedPrevOutputFetcher(pkScript, amt),
+		taprootSigningFetcher(sigHashes, hashType, pkScript, amt),
 	)
 	if err != nil {
 		return nil, err
@@ -148,7 +151,7 @@ func RawTxInTapscriptSignature(tx *wire.MsgTx, sigHashes *TxSigHashes, idx int,
 	tapLeafHash := tapLeaf.TapHash()
 	sigHash, err := calcTaprootSignatureHashRaw(
 		sigHashes, hashType, tx, idx,
-		NewCannedPrevOutputFetcher(pkScript, amt),
+		taprootSigningFetcher(sigHashes, hashType, pkScript, amt),
 		WithBaseTapscriptVersion(blankCodeSepValue, tapLeafHash[:]),
 	)
 	if err != nil {
@@ -579,4 +582,20 @@ func SignTxOutput(chainParams *chaincfg.Params, tx *wire.MsgTx, idx int,
 	mergedScript := mergeScripts(chainParams, tx, idx, pkScript, class,
 		addresses, nrequired, sigScript, previousScript)
 	return mergedScript, nil
+}
+
+// taprootSigningFetcher returns the fetcher a taproot or tapscript signing
+// helper should hash with: the canned one covering only the signed input
+// for BIP341, and the fetcher the midstate was built from for an opted-in
+// (SigHashUnified) signature, which commits to every spent output.
+func taprootSigningFetcher(sigHashes *TxSigHashes, hashType SigHashType,
+	pkScript []byte, amt int64) PrevOutputFetcher {
+
+	if hashType&SigHashUnified != 0 && sigHashes != nil &&
+		sigHashes.prevOutFetcher != nil {
+
+		return sigHashes.prevOutFetcher
+	}
+
+	return NewCannedPrevOutputFetcher(pkScript, amt)
 }

@@ -44,6 +44,7 @@ const (
 		ScriptVerifyMinimalIf |
 		ScriptVerifyWitnessPubKeyType |
 		ScriptVerifyTaproot |
+		ScriptVerifyUnifiedSigHash |
 		ScriptVerifyDiscourageUpgradeableTaprootVersion |
 		ScriptVerifyDiscourageOpSuccess |
 		ScriptVerifyDiscourageUpgradeablePubkeyType |

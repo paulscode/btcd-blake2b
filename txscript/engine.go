@@ -118,6 +118,13 @@ const (
 	// ScriptVerifyConstScriptCode fails non-segwit scripts if a signature
 	// match is found in the script code or if OP_CODESEPARATOR is used.
 	ScriptVerifyConstScriptCode
+
+	// ScriptVerifyUnifiedSigHash honours the opt-in unified signature
+	// hash of the Bitcoin BLAKE2b chain: a signature whose hash type
+	// carries SigHashUnified is checked against the unified message. Off,
+	// the bit is what it was before the fork: an ignored bit of a legacy
+	// or BIP143 hash type, and an undefined one under BIP341.
+	ScriptVerifyUnifiedSigHash
 )
 
 const (
@@ -656,9 +663,10 @@ func (vm *Engine) verifyWitnessProgram(witness wire.TxWitness) error {
 			// removing the annex), we'll do normal taproot
 			// keyspend validation.
 			rawSig := witness[0]
-			err := VerifyTaprootKeySpend(
+			err := verifyTaprootKeySpend(
 				vm.witnessProgram, rawSig, &vm.tx, vm.txIdx,
 				vm.prevOutFetcher, vm.hashCache, vm.sigCache,
+				vm.hasFlag(ScriptVerifyUnifiedSigHash),
 			)
 			if err != nil {
 				// TODO(roasbeef): proper error
@@ -1160,7 +1168,9 @@ func (vm *Engine) checkHashTypeEncoding(hashType SigHashType) error {
 		return nil
 	}
 
-	sigHashType := hashType & ^SigHashAnyOneCanPay
+	// SigHashUnified is an opt-in bit, not a hash type of its own; what
+	// remains must still name one of the three output commitments.
+	sigHashType := hashType & ^(SigHashAnyOneCanPay | SigHashUnified)
 	if sigHashType < SigHashAll || sigHashType > SigHashSingle {
 		str := fmt.Sprintf("invalid hash type 0x%x", hashType)
 		return scriptError(ErrInvalidSigHashType, str)

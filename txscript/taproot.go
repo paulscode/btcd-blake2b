@@ -61,6 +61,20 @@ func VerifyTaprootKeySpend(witnessProgram []byte, rawSig []byte, tx *wire.MsgTx,
 	inputIndex int, prevOuts PrevOutputFetcher, hashCache *TxSigHashes,
 	sigCache *SigCache) error {
 
+	return verifyTaprootKeySpend(
+		witnessProgram, rawSig, tx, inputIndex, prevOuts, hashCache,
+		sigCache, false,
+	)
+}
+
+// verifyTaprootKeySpend is VerifyTaprootKeySpend with a choice of whether
+// the opt-in unified signature hash (SigHashUnified) is honoured; the
+// engine passes ScriptVerifyUnifiedSigHash, the exported function keeps
+// BIP341's rules alone.
+func verifyTaprootKeySpend(witnessProgram []byte, rawSig []byte,
+	tx *wire.MsgTx, inputIndex int, prevOuts PrevOutputFetcher,
+	hashCache *TxSigHashes, sigCache *SigCache, unified bool) error {
+
 	// First, we'll need to extract the public key from the witness
 	// program.
 	rawKey := witnessProgram
@@ -78,7 +92,7 @@ func VerifyTaprootKeySpend(witnessProgram []byte, rawSig []byte, tx *wire.MsgTx,
 	// specifics for us.
 	keySpendVerifier, err := newTaprootSigVerifier(
 		rawKey, rawSig, tx, inputIndex, prevOuts, sigCache,
-		hashCache, annex,
+		hashCache, annex, unified,
 	)
 	if err != nil {
 		return err
