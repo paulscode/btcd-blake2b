@@ -224,6 +224,13 @@ const (
 	// ErrTimewarpAttack indicates a timewarp attack i.e.
 	// when block's timestamp is too early on diff adjustment block.
 	ErrTimewarpAttack
+
+	// ErrUnsupportedProofOfWork indicates the block carries a Bitcoin
+	// BLAKE2b "header v2" whose proof of work this package does not
+	// validate. A bitcoind backend is the authority for those blocks; this
+	// error exists so nothing silently checks a BLAKE2b block id against a
+	// SHA256d target.
+	ErrUnsupportedProofOfWork
 )
 
 // Map of ErrorCode values back to their constant names for pretty printing.
@@ -271,6 +278,8 @@ var errorCodeStrings = map[ErrorCode]string{
 	ErrPreviousBlockUnknown:      "ErrPreviousBlockUnknown",
 	ErrInvalidAncestorBlock:      "ErrInvalidAncestorBlock",
 	ErrPrevBlockNotBest:          "ErrPrevBlockNotBest",
+	ErrTimewarpAttack:            "ErrTimewarpAttack",
+	ErrUnsupportedProofOfWork:    "ErrUnsupportedProofOfWork",
 }
 
 // String returns the ErrorCode as a human-readable name.

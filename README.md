@@ -34,6 +34,28 @@ directly with btcd.  That functionality is provided by the
 [Paymetheus](https://github.com/btcsuite/Paymetheus) (Windows-only) projects
 which are both under active development.
 
+## This fork: Bitcoin BLAKE2b chain support
+
+This is `github.com/paulscode/btcd-blake2b`, a fork of btcd that understands
+the Bitcoin BLAKE2b chain (Bitcoin Knots v29.4.1, mainnet activation at
+height 961640). The module path is unchanged so consumers use a `replace`
+directive. What differs from upstream:
+
+- `wire.BlockHeader` parses and serializes both the classic 80-byte header
+  and the 164-byte "header v2" (top version bit set), and `BlockHash()`
+  computes the BLAKE2b-chain block id for v2 headers, checked against the
+  five vectors Knots publishes and against live mainnet headers on both
+  sides of activation (`wire/testdata/`).
+- `wire.MsgBlock` refuses a block whose body disagrees with the transaction
+  count its v2 header commits to.
+- `btcjson` block and header verbose results carry the v2 fields Knots
+  reports.
+- `blockchain` refuses to validate BLAKE2b proof of work rather than
+  checking a BLAKE2b id against a SHA256d target; a Bitcoin Knots backend is
+  the authority for those blocks.
+
+Nothing else is changed. Upstream README follows.
+
 ## Requirements
 
 [Go](http://golang.org) 1.22 or newer.

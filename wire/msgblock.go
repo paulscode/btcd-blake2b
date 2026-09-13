@@ -98,6 +98,13 @@ func (msg *MsgBlock) BtcDecode(r io.Reader, pver uint32, enc MessageEncoding) er
 		return messageError("MsgBlock.BtcDecode", str)
 	}
 
+	// A v2 header commits to the transaction count. A body that disagrees
+	// is malformed, and reading it would silently misattribute every
+	// transaction that follows, so refuse it here.
+	if err := checkHeaderTxCount(&msg.Header, txCount); err != nil {
+		return messageError("MsgBlock.BtcDecode", err.Error())
+	}
+
 	scriptBuf := scriptPool.Borrow()
 	defer scriptPool.Return(scriptBuf)
 
@@ -172,6 +179,10 @@ func (msg *MsgBlock) DeserializeTxLoc(r *bytes.Buffer) ([]TxLoc, error) {
 		str := fmt.Sprintf("too many transactions to fit into a block "+
 			"[count %d, max %d]", txCount, maxTxPerBlock)
 		return nil, messageError("MsgBlock.DeserializeTxLoc", str)
+	}
+
+	if err := checkHeaderTxCount(&msg.Header, txCount); err != nil {
+		return nil, messageError("MsgBlock.DeserializeTxLoc", err.Error())
 	}
 
 	scriptBuf := scriptPool.Borrow()
@@ -257,7 +268,8 @@ func (msg *MsgBlock) SerializeNoWitness(w io.Writer) error {
 func (msg *MsgBlock) SerializeSize() int {
 	// Block header bytes + Serialized varint size for the number of
 	// transactions.
-	n := blockHeaderLen + VarIntSerializeSize(uint64(len(msg.Transactions)))
+	n := msg.Header.SerializeSize() +
+		VarIntSerializeSize(uint64(len(msg.Transactions)))
 
 	for _, tx := range msg.Transactions {
 		n += tx.SerializeSize()
@@ -271,7 +283,8 @@ func (msg *MsgBlock) SerializeSize() int {
 func (msg *MsgBlock) SerializeSizeStripped() int {
 	// Block header bytes + Serialized varint size for the number of
 	// transactions.
-	n := blockHeaderLen + VarIntSerializeSize(uint64(len(msg.Transactions)))
+	n := msg.Header.SerializeSize() +
+		VarIntSerializeSize(uint64(len(msg.Transactions)))
 
 	for _, tx := range msg.Transactions {
 		n += tx.SerializeSizeStripped()
@@ -316,4 +329,18 @@ func NewMsgBlock(blockHeader *BlockHeader) *MsgBlock {
 		Header:       *blockHeader,
 		Transactions: make([]*MsgTx, 0, defaultTransactionAlloc),
 	}
+}
+
+// checkHeaderTxCount verifies that the transaction count in the body of a
+// block matches the count a v2 header commits to. Classic headers carry no
+// count and always pass.
+func checkHeaderTxCount(header *BlockHeader, bodyCount uint64) error {
+	if !header.HeaderV2 {
+		return nil
+	}
+	if uint64(header.TxCount) != bodyCount {
+		return fmt.Errorf("v2 header commits to %d transactions but the "+
+			"block body carries %d", header.TxCount, bodyCount)
+	}
+	return nil
 }

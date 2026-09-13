@@ -32,6 +32,21 @@ type GetBlockHeaderVerboseResult struct {
 	Difficulty    float64 `json:"difficulty"`
 	PreviousHash  string  `json:"previousblockhash,omitempty"`
 	NextHash      string  `json:"nextblockhash,omitempty"`
+
+	// Fields present on a Bitcoin BLAKE2b chain "header v2" block. All are
+	// omitted by a node that does not know them, so a stock backend still
+	// decodes cleanly. Knots reports the base version (the v2 bit stripped)
+	// in Version and says which format the header is in HeaderVersion.
+	TxCount             *uint16 `json:"txcount,omitempty"`
+	HeaderVersion       *int32  `json:"header_version,omitempty"`
+	Nonce2              string  `json:"nonce2,omitempty"`
+	Nonce3              string  `json:"nonce3,omitempty"`
+	Extranonce          string  `json:"extranonce,omitempty"`
+	TimeOffset          *uint32 `json:"time_offset,omitempty"`
+	HeaderFlags         *uint8  `json:"header_flags,omitempty"`
+	XorKeyMaskClearBits *uint8  `json:"xor_key_mask_clear_bits,omitempty"`
+	XorKey              string  `json:"xor_key,omitempty"`
+	MMRhs               string  `json:"mm_rhs,omitempty"`
 }
 
 // GetBlockStatsResult models the data from the getblockstats command.
@@ -90,6 +105,21 @@ type GetBlockVerboseResult struct {
 	Difficulty    float64       `json:"difficulty"`
 	PreviousHash  string        `json:"previousblockhash"`
 	NextHash      string        `json:"nextblockhash,omitempty"`
+
+	// Fields present on a Bitcoin BLAKE2b chain "header v2" block. All are
+	// omitted by a node that does not know them, so a stock backend still
+	// decodes cleanly. Knots reports the base version (the v2 bit stripped)
+	// in Version and says which format the header is in HeaderVersion.
+	TxCount             *uint16 `json:"txcount,omitempty"`
+	HeaderVersion       *int32  `json:"header_version,omitempty"`
+	Nonce2              string  `json:"nonce2,omitempty"`
+	Nonce3              string  `json:"nonce3,omitempty"`
+	Extranonce          string  `json:"extranonce,omitempty"`
+	TimeOffset          *uint32 `json:"time_offset,omitempty"`
+	HeaderFlags         *uint8  `json:"header_flags,omitempty"`
+	XorKeyMaskClearBits *uint8  `json:"xor_key_mask_clear_bits,omitempty"`
+	XorKey              string  `json:"xor_key,omitempty"`
+	MMRhs               string  `json:"mm_rhs,omitempty"`
 }
 
 // GetBlockVerboseTxResult models the data from the getblock command when the
@@ -116,6 +146,18 @@ type GetBlockVerboseTxResult struct {
 	Difficulty    float64       `json:"difficulty"`
 	PreviousHash  string        `json:"previousblockhash"`
 	NextHash      string        `json:"nextblockhash,omitempty"`
+	// Fields present on a Bitcoin BLAKE2b chain "header v2" block; see
+	// GetBlockHeaderVerboseResult.
+	TxCount             *uint16 `json:"txcount,omitempty"`
+	HeaderVersion       *int32  `json:"header_version,omitempty"`
+	Nonce2              string  `json:"nonce2,omitempty"`
+	Nonce3              string  `json:"nonce3,omitempty"`
+	Extranonce          string  `json:"extranonce,omitempty"`
+	TimeOffset          *uint32 `json:"time_offset,omitempty"`
+	HeaderFlags         *uint8  `json:"header_flags,omitempty"`
+	XorKeyMaskClearBits *uint8  `json:"xor_key_mask_clear_bits,omitempty"`
+	XorKey              string  `json:"xor_key,omitempty"`
+	MMRhs               string  `json:"mm_rhs,omitempty"`
 }
 
 // GetChainTipsResult models the data from the getchaintips command.

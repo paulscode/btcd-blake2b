@@ -315,6 +315,17 @@ func CheckTransactionSanity(tx *btcutil.Tx) error {
 //   - BFNoPoWCheck: The check to ensure the block hash is less than the target
 //     difficulty is not performed.
 func checkProofOfWork(header *wire.BlockHeader, powLimit *big.Int, flags BehaviorFlags) error {
+	// A v2 header's block id is a BLAKE2b construction with a one-off
+	// target shift at activation; comparing it against a SHA256d-style
+	// target here would be wrong in both directions. Refuse rather than
+	// guess. Consumers of this fork rely on a Bitcoin Knots backend to
+	// validate proof of work.
+	if header.IsV2() {
+		return ruleError(ErrUnsupportedProofOfWork, "BLAKE2b (header v2) "+
+			"proof of work is not validated by this build; a Bitcoin "+
+			"Knots backend must validate it")
+	}
+
 	// The target difficulty must be larger than zero.
 	target := CompactToBig(header.Bits)
 	if target.Sign() <= 0 {
