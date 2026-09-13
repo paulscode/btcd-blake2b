@@ -602,3 +602,20 @@ func TestUnifiedSigHashGatedByFlag(t *testing.T) {
 		unifiedInP2TR, s.fetcher, sigHashes, nil,
 	))
 }
+
+// TestTxSigHashesUnknownPrevOut: a midstate can be built for a transaction
+// whose spent outputs the fetcher does not all know; the unified digest
+// then refuses rather than hashing garbage.
+func TestTxSigHashesUnknownPrevOut(t *testing.T) {
+	t.Parallel()
+
+	s := newUnifiedSpend(t)
+	empty := NewMultiPrevOutFetcher(nil)
+	require.NotPanics(t, func() { NewTxSigHashes(s.tx, empty) })
+
+	_, err := RawTxInWitnessSignature(
+		s.tx, NewTxSigHashes(s.tx, empty), unifiedInP2WPKH, s.inputAmount,
+		s.p2wpkh, SigHashAll|SigHashUnified, s.key,
+	)
+	require.ErrorContains(t, err, "unknown")
+}

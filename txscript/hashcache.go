@@ -243,6 +243,15 @@ func NewTxSigHashes(tx *wire.MsgTx,
 
 		prevOut := inputFetcher.FetchPrevOutput(outpoint)
 
+		// An input the fetcher does not know cannot be a taproot spend
+		// we could hash for anyway; treat it as v0 rather than crash.
+		// A unified digest over it fails loudly later, since it asks
+		// the fetcher for every spent output.
+		if prevOut == nil {
+			hasV0Inputs = true
+			continue
+		}
+
 		// If this is spending a script that looks like a taproot output,
 		// then we'll need to pre-compute the extra taproot data.
 		if IsPayToTaproot(prevOut.PkScript) {
