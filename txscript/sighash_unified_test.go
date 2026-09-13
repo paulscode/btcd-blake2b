@@ -515,12 +515,63 @@ func TestUnifiedSigHashTaprootRefusesDefault(t *testing.T) {
 func TestUnifiedSigHashStrictEncoding(t *testing.T) {
 	t.Parallel()
 
-	vm := &Engine{flags: ScriptVerifyStrictEncoding}
+	vm := &Engine{flags: ScriptVerifyStrictEncoding | ScriptVerifyUnifiedSigHash}
 	require.NoError(t, vm.checkHashTypeEncoding(0x21))
 	require.NoError(t, vm.checkHashTypeEncoding(0xa3))
 	require.Error(t, vm.checkHashTypeEncoding(0x20))
 	require.Error(t, vm.checkHashTypeEncoding(0x24))
 	require.Error(t, vm.checkHashTypeEncoding(0x04))
+
+	// Without the fork flag the bit is undefined, as Core has it.
+	core := &Engine{flags: ScriptVerifyStrictEncoding}
+	require.Error(t, core.checkHashTypeEncoding(0x21))
+	require.NoError(t, core.checkHashTypeEncoding(0x01))
+}
+
+// TestUnifiedSigHashRefusesCannedSiblings: a canned fetcher is exact for one
+// input and for ANYONECANPAY, and refused for the siblings of a multi-input
+// transaction rather than hashed wrongly.
+func TestUnifiedSigHashRefusesCannedSiblings(t *testing.T) {
+	t.Parallel()
+
+	s := newUnifiedSpend(t)
+	canned := NewCannedPrevOutputFetcher(s.p2wpkh, s.inputAmount)
+	code := WithUnifiedScriptCode(witnessV0ScriptCode(s.p2wpkh))
+
+	_, err := CalcUnifiedSignatureHash(
+		s.tx, unifiedInP2WPKH, UnifiedScriptWitnessV0, 0x21, canned, code,
+	)
+	require.ErrorContains(t, err, "canned")
+	_, err = CalcUnifiedSignatureHash(
+		s.tx, unifiedInP2WPKH, UnifiedScriptWitnessV0, 0xa1, canned, code,
+	)
+	require.NoError(t, err)
+
+	// The signing helpers with a midstate built from a canned fetcher
+	// refuse too, instead of returning a signature nobody accepts.
+	cannedHashes := NewTxSigHashes(s.tx, canned)
+	_, err = RawTxInWitnessSignature(
+		s.tx, cannedHashes, unifiedInP2WPKH, s.inputAmount, s.p2wpkh,
+		0x21, s.key,
+	)
+	require.Error(t, err)
+	_, err = TaprootWitnessSignature(
+		s.tx, cannedHashes, unifiedInP2TR, s.inputAmount, s.p2tr, 0x21,
+		s.key,
+	)
+	require.Error(t, err)
+
+	// A single-input transaction is exactly what a canned fetcher
+	// describes.
+	single := wire.NewMsgTx(2)
+	single.AddTxIn(wire.NewTxIn(&s.tx.TxIn[unifiedInP2TR].PreviousOutPoint, nil, nil))
+	single.AddTxOut(wire.NewTxOut(s.inputAmount-200, s.p2wpkh))
+	singleCanned := NewCannedPrevOutputFetcher(s.p2tr, s.inputAmount)
+	_, err = TaprootWitnessSignature(
+		single, NewTxSigHashes(single, singleCanned), 0, s.inputAmount,
+		s.p2tr, 0x21, s.key,
+	)
+	require.NoError(t, err)
 }
 
 // TestUnifiedSigHashGatedByFlag: without ScriptVerifyUnifiedSigHash the

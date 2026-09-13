@@ -196,6 +196,20 @@ func CalcUnifiedSignatureHash(tx *wire.MsgTx, idx int,
 		return nil, fmt.Errorf("the unified signature hash needs the " +
 			"spent outputs, but no PrevOutputFetcher was given")
 	}
+
+	// A canned fetcher answers with one output for every outpoint. That
+	// is exact for a single-input transaction and for ANYONECANPAY, where
+	// only this input's output is committed to; for the siblings of a
+	// multi-input transaction it would silently produce a digest no
+	// verifier reconstructs.
+	if _, canned := prevOutFetcher.(*CannedPrevOutputFetcher); canned &&
+		!anyoneCanPay && len(tx.TxIn) > 1 {
+
+		return nil, fmt.Errorf("the unified signature hash of a %d-input "+
+			"transaction commits to every spent output, which a canned "+
+			"PrevOutputFetcher cannot supply; build the TxSigHashes "+
+			"from a fetcher that knows all of them", len(tx.TxIn))
+	}
 	spentOutput := func(i int) (*wire.TxOut, error) {
 		out := prevOutFetcher.FetchPrevOutput(tx.TxIn[i].PreviousOutPoint)
 		if out == nil {

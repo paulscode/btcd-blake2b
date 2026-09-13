@@ -77,7 +77,7 @@ func RawTxInTaprootSignature(tx *wire.MsgTx, sigHashes *TxSigHashes, idx int,
 	// fetcher covers just this input.
 	sigHash, err := calcTaprootSignatureHashRaw(
 		sigHashes, hashType, tx, idx,
-		taprootSigningFetcher(sigHashes, hashType, pkScript, amt),
+		taprootSigningFetcher(sigHashes, pkScript, amt),
 	)
 	if err != nil {
 		return nil, err
@@ -151,7 +151,7 @@ func RawTxInTapscriptSignature(tx *wire.MsgTx, sigHashes *TxSigHashes, idx int,
 	tapLeafHash := tapLeaf.TapHash()
 	sigHash, err := calcTaprootSignatureHashRaw(
 		sigHashes, hashType, tx, idx,
-		taprootSigningFetcher(sigHashes, hashType, pkScript, amt),
+		taprootSigningFetcher(sigHashes, pkScript, amt),
 		WithBaseTapscriptVersion(blankCodeSepValue, tapLeafHash[:]),
 	)
 	if err != nil {
@@ -585,16 +585,18 @@ func SignTxOutput(chainParams *chaincfg.Params, tx *wire.MsgTx, idx int,
 }
 
 // taprootSigningFetcher returns the fetcher a taproot or tapscript signing
-// helper should hash with: the canned one covering only the signed input
-// for BIP341, and the fetcher the midstate was built from for an opted-in
-// (SigHashUnified) signature, which commits to every spent output.
-func taprootSigningFetcher(sigHashes *TxSigHashes, hashType SigHashType,
-	pkScript []byte, amt int64) PrevOutputFetcher {
+// helper should hash with: the fetcher the midstate was built from when it
+// has one, which is what an opted-in (SigHashUnified) signature needs since
+// it commits to every spent output, and otherwise a canned one covering the
+// signed input alone, which BIP341 is content with and which the unified
+// digest refuses for a multi-input transaction rather than hashing wrongly.
+func taprootSigningFetcher(sigHashes *TxSigHashes, pkScript []byte,
+	amt int64) PrevOutputFetcher {
 
-	if hashType&SigHashUnified != 0 && sigHashes != nil &&
-		sigHashes.prevOutFetcher != nil {
-
-		return sigHashes.prevOutFetcher
+	if sigHashes != nil && sigHashes.prevOutFetcher != nil {
+		if _, canned := sigHashes.prevOutFetcher.(*CannedPrevOutputFetcher); !canned {
+			return sigHashes.prevOutFetcher
+		}
 	}
 
 	return NewCannedPrevOutputFetcher(pkScript, amt)

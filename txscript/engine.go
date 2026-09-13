@@ -1168,9 +1168,15 @@ func (vm *Engine) checkHashTypeEncoding(hashType SigHashType) error {
 		return nil
 	}
 
-	// SigHashUnified is an opt-in bit, not a hash type of its own; what
-	// remains must still name one of the three output commitments.
-	sigHashType := hashType & ^(SigHashAnyOneCanPay | SigHashUnified)
+	// Where the fork is active, SigHashUnified is an opt-in bit rather
+	// than a hash type of its own; what remains must still name one of
+	// the three output commitments. Without the flag the bit is undefined,
+	// as it was before the fork.
+	mask := SigHashAnyOneCanPay
+	if vm.hasFlag(ScriptVerifyUnifiedSigHash) {
+		mask |= SigHashUnified
+	}
+	sigHashType := hashType & ^mask
 	if sigHashType < SigHashAll || sigHashType > SigHashSingle {
 		str := fmt.Sprintf("invalid hash type 0x%x", hashType)
 		return scriptError(ErrInvalidSigHashType, str)
