@@ -321,7 +321,10 @@ func checkProofOfWork(header *wire.BlockHeader, powLimit *big.Int, flags Behavio
 	// GetHash() either way. The one-off target shift at the BLAKE2b
 	// activation belongs to the difficulty rules (calcNextRequiredDifficulty),
 	// not to this comparison. Whether a v2 header is allowed at its height
-	// at all is a contextual question, answered in CheckBlockHeaderContext.
+	// is checked in two places: CheckHeaderV2Sanity refuses one committing
+	// to a height below the activation before the real height is known (an
+	// orphan), and checkHeaderV2Context compares the committed height with
+	// the real one.
 	if header.IsV2() && header.Flags&header2ReservedFlags != 0 {
 		// Knots' bad-flags-highbits: the top two bits of flags are
 		// reserved for a future hard fork.

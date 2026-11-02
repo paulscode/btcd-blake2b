@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/wire"
@@ -279,5 +280,40 @@ func TestCheckHeaderV2Sanity(t *testing.T) {
 	none.Blake2bHeight = 0
 	if code, _ := ruleCode(CheckHeaderV2Sanity(v2, &none)); code != ErrUnsupportedProofOfWork {
 		t.Fatalf("v2 header without BLAKE2b configured: got %v, want ErrUnsupportedProofOfWork", code)
+	}
+}
+
+// TestProcessBlockHeaderV2Sanity checks that ProcessBlock applies
+// CheckHeaderV2Sanity before a block is kept as an orphan, where the real
+// height is not known yet: a v2 block committing to a height below the
+// activation is refused, and the same block committing to the activation
+// height is kept as an orphan.
+func TestProcessBlockHeaderV2Sanity(t *testing.T) {
+	params := chaincfg.RegressionNetParams
+	params.Blake2bHeight = 100
+	chain, teardown, err := chainSetup("processv2sanity", &params)
+	if err != nil {
+		t.Fatalf("chain setup: %v", err)
+	}
+	defer teardown()
+
+	orphanAt := func(height int32) *btcutil.Block {
+		msg := *params.GenesisBlock
+		msg.Header.HeaderV2 = true
+		msg.Header.Height = height
+		msg.Header.PrevBlock = chainhash.Hash{0x01}
+		msg.Header.Timestamp = time.Unix(time.Now().Unix(), 0)
+		return btcutil.NewBlock(&msg)
+	}
+
+	_, _, err = chain.ProcessBlock(orphanAt(99), BFNoPoWCheck)
+	if code, _ := ruleCode(err); code != ErrBadHeaderV2 {
+		t.Fatalf("v2 orphan committing to the block below the activation: "+
+			"got %v, want ErrBadHeaderV2", err)
+	}
+	_, isOrphan, err := chain.ProcessBlock(orphanAt(100), BFNoPoWCheck)
+	if err != nil || !isOrphan {
+		t.Fatalf("v2 orphan committing to the activation height: orphan %v, %v",
+			isOrphan, err)
 	}
 }
