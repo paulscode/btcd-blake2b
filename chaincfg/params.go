@@ -244,12 +244,20 @@ type Params struct {
 	// first spending height at which consensus rejects an early spend, and
 	// CoinbaseMaturityLongReleaseHeight the first spending height at which the
 	// rule stops applying. Only consensus reads the heights; relay applies
-	// CoinbaseMaturityLong to every coinbase regardless of them. See
-	// coinbasematurity.go.
+	// CoinbaseMaturityLong to every coinbase mined before any rolling rule
+	// below regardless of them. See coinbasematurity.go.
 	CoinbaseMaturityLong              int32
 	CoinbaseMaturityLongStartHeight   int32
 	CoinbaseMaturityLongEnforceHeight int32
 	CoinbaseMaturityLongReleaseHeight int32
+
+	// CoinbaseMaturityRolling is the depth a coinbase mined at or after
+	// CoinbaseMaturityRollingStartHeight must reach under the rolling rule
+	// that followed the long one on mainnet (Bitcoin Knots 29.4.3). It has
+	// no release height: consensus enforces it on every spend from the start
+	// height on. Zero means not deployed. See coinbasematurity.go.
+	CoinbaseMaturityRolling            int32
+	CoinbaseMaturityRollingStartHeight int32
 
 	// SubsidyReductionInterval is the interval of blocks before the subsidy
 	// is reduced.
@@ -354,13 +362,21 @@ var MainNetParams = Params{
 	BIP0066Height:    363725, // 00000000000000000379eaa19dce8c9b722d46ae6a57c2f1a988119488b50931
 	CoinbaseMaturity: 100,
 
-	// The temporary long coinbase maturity rule. Taken from Bitcoin Knots
-	// v29.4.2.knots20260508rc2; the heights had already moved once before that,
-	// so re-check them against the release that ships before relying on them.
+	// The temporary long coinbase maturity rule of Bitcoin Knots 29.4.2
+	// (Knots 29.4.3 keeps it as CoinbaseMaturityHistorical*).
 	CoinbaseMaturityLong:              6480, // release - start, about 45 days
 	CoinbaseMaturityLongStartHeight:   973440,
 	CoinbaseMaturityLongEnforceHeight: 973440,
 	CoinbaseMaturityLongReleaseHeight: 979920,
+
+	// The rolling rule of Bitcoin Knots 29.4.3 (v29.4.3.knots20260508,
+	// a7c46175, consensus/tx_verify.cpp): 180 days for a coinbase from block
+	// 979919, enforced from that height, until RDTS expires. Knots returns a
+	// coinbase whose block's parent has a median time past at or after
+	// 2027-09-01 00:00 UTC to 100 blocks; that is not modeled here, so such a
+	// coinbase is held for longer, never released early.
+	CoinbaseMaturityRolling:            180 * 144,
+	CoinbaseMaturityRollingStartHeight: 979919,
 
 	// BLAKE2b proof of work from block 961640 (Knots v29.4.2).
 	Blake2bHeight:      961640,

@@ -1604,20 +1604,22 @@ func (mp *TxPool) validateSegWitDeployment(tx *btcutil.Tx) error {
 // validateCoinbaseRelayMaturity rejects a transaction spending a coinbase output that has
 // not reached the depth an upgraded node requires before it will relay the spend.
 //
-// It is deliberately blunter than consensus: it asks nothing about where the coinbase was
-// mined or whether the long maturity rule is active at this height, because the nodes this
-// one has to trade transactions with do not ask either. On a network where the rule is not
-// deployed this is the ordinary coinbase maturity and the check changes nothing.
+// It is deliberately blunter than consensus: it asks only which rule the coinbase's height
+// falls under (RelayCoinbaseMaturityAt), not whether that rule is active at this height,
+// because the nodes this one has to trade transactions with do not ask either. On a network
+// where no rule is deployed this is the ordinary coinbase maturity and the check changes
+// nothing.
 func (mp *TxPool) validateCoinbaseRelayMaturity(nextBlockHeight int32,
 	utxoView *blockchain.UtxoViewpoint) error {
-
-	required := mp.cfg.ChainParams.RelayCoinbaseMaturity()
 
 	for outpoint, utxo := range utxoView.Entries() {
 		if utxo == nil || utxo.IsSpent() || !utxo.IsCoinBase() {
 			continue
 		}
 
+		required := mp.cfg.ChainParams.RelayCoinbaseMaturityAt(
+			utxo.BlockHeight(),
+		)
 		depth := nextBlockHeight - utxo.BlockHeight()
 		if depth >= required {
 			continue
