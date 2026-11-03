@@ -43,9 +43,11 @@ import (
 
 const (
 	// defaultServices describes the default services that are supported by
-	// the server.
+	// the server. SFNodeBlake2b, since this follows the BLAKE2b chain:
+	// without it, Knots from 29.4.3 serves nothing past the fork.
 	defaultServices = wire.SFNodeNetwork | wire.SFNodeNetworkLimited |
-		wire.SFNodeBloom | wire.SFNodeWitness | wire.SFNodeCF | wire.SFNodeP2PV2
+		wire.SFNodeBloom | wire.SFNodeWitness | wire.SFNodeCF |
+		wire.SFNodeP2PV2 | wire.SFNodeBlake2b
 
 	// defaultRequiredServices describes the default services that are
 	// required to be supported by outbound peers.

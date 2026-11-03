@@ -107,6 +107,12 @@ const (
 	// SFNodeP2PV2 is a flag used to indicate a peer supports BIP324 v2
 	// connections.
 	SFNodeP2PV2 = 1 << 11
+
+	// SFNodeBlake2b is NODE_BLAKE2B, a flag used to indicate a peer follows
+	// the BLAKE2b chain's rules. Bitcoin Knots from 29.4.3 sends headers,
+	// blocks and block announcements above the last block the two chains
+	// share only to peers that advertise it.
+	SFNodeBlake2b ServiceFlag = 1 << 28
 )
 
 // Map of service flags back to their constant names for pretty printing.
@@ -121,6 +127,7 @@ var sfStrings = map[ServiceFlag]string{
 	SFNode2X:             "SFNode2X",
 	SFNodeNetworkLimited: "SFNodeNetworkLimited",
 	SFNodeP2PV2:          "SFNodeP2PV2",
+	SFNodeBlake2b:        "SFNodeBlake2b",
 }
 
 // orderedSFStrings is an ordered list of service flags from highest to
@@ -136,6 +143,7 @@ var orderedSFStrings = []ServiceFlag{
 	SFNode2X,
 	SFNodeNetworkLimited,
 	SFNodeP2PV2,
+	SFNodeBlake2b,
 }
 
 // HasFlag returns a bool indicating if the service has the given flag.
